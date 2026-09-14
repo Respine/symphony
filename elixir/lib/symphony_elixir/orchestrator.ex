@@ -1516,9 +1516,14 @@ defmodule SymphonyElixir.Orchestrator do
     last_reported_total = Map.get(running_entry, :codex_last_reported_total_tokens, 0)
     turn_count = Map.get(running_entry, :turn_count, 0)
 
+    activity_timestamp =
+      if progress_update?(update),
+        do: timestamp,
+        else: Map.get(running_entry, :last_codex_timestamp)
+
     {
       Map.merge(running_entry, %{
-        last_codex_timestamp: timestamp,
+        last_codex_timestamp: activity_timestamp,
         last_codex_message: summarize_codex_update(update),
         session_id: session_id_for_update(running_entry.session_id, update),
         last_codex_event: event,
@@ -1534,6 +1539,12 @@ defmodule SymphonyElixir.Orchestrator do
       token_delta
     }
   end
+
+  # Transport/model-refresh errors can repeat forever while a turn makes no
+  # progress. They remain visible on the dashboard, but must not defeat the
+  # stalled-worker watchdog by refreshing its activity clock.
+  defp progress_update?(%{event: :notification, payload: %{"method" => "error"}}), do: false
+  defp progress_update?(_update), do: true
 
   defp codex_app_server_pid_for_update(_existing, %{codex_app_server_pid: pid})
        when is_binary(pid),

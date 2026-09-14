@@ -972,6 +972,69 @@ defmodule SymphonyElixir.OrchestratorStatusTest do
     assert remaining_ms <= 10_500
   end
 
+  test "Codex error notifications do not keep a stalled worker alive" do
+    write_workflow_file!(Workflow.workflow_file_path(),
+      tracker_kind: "memory",
+      codex_stall_timeout_ms: 1_000
+    )
+
+    issue_id = "issue-error-stall"
+    orchestrator_name = Module.concat(__MODULE__, :ErrorStallOrchestrator)
+    {:ok, pid} = Orchestrator.start_link(name: orchestrator_name)
+
+    on_exit(fn ->
+      if Process.alive?(pid), do: Process.exit(pid, :normal)
+    end)
+
+    worker_pid = spawn(fn -> Process.sleep(:infinity) end)
+    stale_activity_at = DateTime.add(DateTime.utc_now(), -5, :second)
+    initial_state = :sys.get_state(pid)
+
+    issue = %Issue{
+      id: issue_id,
+      identifier: "MT-ERROR-STALL",
+      state: "In Progress",
+      url: "https://example.org/issues/MT-ERROR-STALL"
+    }
+
+    Application.put_env(:symphony_elixir, :memory_tracker_issues, [issue])
+
+    :sys.replace_state(pid, fn _ ->
+      running_entry = %{
+        pid: worker_pid,
+        ref: make_ref(),
+        identifier: issue.identifier,
+        issue: issue,
+        session_id: "thread-error-turn-error",
+        last_codex_timestamp: stale_activity_at,
+        last_codex_event: :notification,
+        started_at: stale_activity_at
+      }
+
+      initial_state
+      |> Map.put(:running, %{issue_id => running_entry})
+      |> Map.put(:claimed, MapSet.put(initial_state.claimed, issue_id))
+    end)
+
+    send(pid, {
+      :codex_worker_update,
+      issue_id,
+      %{
+        event: :notification,
+        timestamp: DateTime.utc_now(),
+        payload: %{"method" => "error", "params" => %{"message" => "network error"}}
+      }
+    })
+
+    send(pid, :tick)
+    Process.sleep(100)
+    state = :sys.get_state(pid)
+
+    refute Process.alive?(worker_pid)
+    refute Map.has_key?(state.running, issue_id)
+    assert %{attempt: 1, error: "stalled for " <> _} = state.retry_attempts[issue_id]
+  end
+
   test "orchestrator blocks stalled workers that are waiting on MCP elicitation" do
     write_workflow_file!(Workflow.workflow_file_path(),
       tracker_kind: "memory",

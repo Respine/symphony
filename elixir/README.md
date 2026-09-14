@@ -268,6 +268,12 @@ codex:
 - Tool: `jira_rest` sends relative `/rest/api/3/` requests host-side with configured Basic auth,
   strips token environment variables from Codex, and can reach whatever the Jira credential can.
 
+### Stalled Codex sessions
+
+`codex.stall_timeout_ms` measures useful app-server activity. Repeated app-server error
+notifications remain visible in logs but do not reset this watchdog, so a disconnected turn is
+terminated and retried instead of remaining stuck indefinitely.
+
 ### Asana adapter
 
 - Config: use `tracker.kind: asana` with required `tracker.provider.project_gid`, optional
