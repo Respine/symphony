@@ -377,12 +377,20 @@ defmodule SymphonyElixir.Codex.AppServer do
   end
 
   defp receive_loop(port, on_message, timeout_ms, pending_line, tool_executor, auto_approve_requests) do
-    receive do
-      {^port, {:data, {:eol, chunk}}} ->
+    case await_port_message(port, timeout_ms) do
+      {:data, {:eol, chunk}} ->
         complete_line = pending_line <> to_string(chunk)
-        handle_incoming(port, on_message, complete_line, timeout_ms, tool_executor, auto_approve_requests)
 
-      {^port, {:data, {:noeol, chunk}}} ->
+        handle_incoming(
+          port,
+          on_message,
+          complete_line,
+          timeout_ms,
+          tool_executor,
+          auto_approve_requests
+        )
+
+      {:data, {:noeol, chunk}} ->
         receive_loop(
           port,
           on_message,
@@ -392,11 +400,27 @@ defmodule SymphonyElixir.Codex.AppServer do
           auto_approve_requests
         )
 
-      {^port, {:exit_status, status}} ->
+      {:exit_status, status} ->
         {:error, {:port_exit, status}}
-    after
-      timeout_ms ->
+
+      :turn_timeout ->
         {:error, :turn_timeout}
+    end
+  end
+
+  defp await_port_message(port, timeout_ms) when timeout_ms <= 0 do
+    receive do
+      {^port, {:data, data}} -> {:data, data}
+      {^port, {:exit_status, status}} -> {:exit_status, status}
+    end
+  end
+
+  defp await_port_message(port, timeout_ms) do
+    receive do
+      {^port, {:data, data}} -> {:data, data}
+      {^port, {:exit_status, status}} -> {:exit_status, status}
+    after
+      timeout_ms -> :turn_timeout
     end
   end
 

@@ -221,7 +221,7 @@ defmodule SymphonyElixir.Config.Schema do
           []
         end
       end)
-      |> validate_number(:turn_timeout_ms, greater_than: 0)
+      |> validate_number(:turn_timeout_ms, greater_than_or_equal_to: 0)
       |> validate_number(:read_timeout_ms, greater_than: 0)
       |> validate_number(:stall_timeout_ms, greater_than_or_equal_to: 0)
     end
