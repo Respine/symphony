@@ -17,7 +17,7 @@ from urllib.error import URLError
 
 INTERVAL_SECONDS = 30 * 60
 POLL_SECONDS = 15
-SERVICES = (4101, 4102, 4103, 4104)
+SERVICES = (4101, 4102, 4103, 4104, 4105)
 STATE_DEFAULT = Path.home() / ".local/state/oh-my-symphony/codex-heartbeat.json"
 LOCK_DEFAULT = Path.home() / ".local/state/oh-my-symphony/codex-heartbeat.lock"
 MESSAGE = (
