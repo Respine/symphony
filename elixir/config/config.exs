@@ -18,6 +18,12 @@ config :symphony_elixir, SymphonyElixirWeb.Endpoint,
   server: false
 
 if config_env() == :test do
+  test_db_dir = Path.join(System.tmp_dir(), "symphony_test_db")
+  test_db_file = Path.join(test_db_dir, "symphony.db")
+
   config :symphony_elixir,
-    workflow_file_path: Path.expand("../test/fixtures/startup_workflow.md", __DIR__)
+    workflow_file_path: Path.expand("../test/fixtures/startup_workflow.md", __DIR__),
+    temp_dir: Path.join(System.tmp_dir(), "symphony_test_working/")
+
+  config :symphony_elixir, SymphonyElixir.ControlPlane.Repo, database: test_db_file
 end
