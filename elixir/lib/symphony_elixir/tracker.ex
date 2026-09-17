@@ -58,6 +58,18 @@ defmodule SymphonyElixir.Tracker do
     }
   end
 
+  @doc """
+  Environment variable names holding tracker credentials for the selected
+  adapter. Agent child processes must not inherit them.
+  """
+  @spec secret_environment_names() :: [String.t()]
+  def secret_environment_names do
+    tracker_settings = Config.settings!().tracker
+    adapter = adapter_for_settings!(tracker_settings)
+
+    adapter_secret_environment_names(adapter, tracker_settings)
+  end
+
   @spec execute_bound_agent_tool(map(), String.t(), term(), keyword()) :: map()
   def execute_bound_agent_tool(
         %{adapter: adapter, tracker_settings: tracker_settings},

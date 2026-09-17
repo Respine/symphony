@@ -274,6 +274,44 @@ codex:
 notifications remain visible in logs but do not reset this watchdog, so a disconnected turn is
 terminated and retried instead of remaining stuck indefinitely.
 
+### Pi agent backend
+
+`agent.kind: pi` runs the Pi coding agent in RPC mode instead of Codex app-server. The Codex
+settings stay in place and keep their meaning, so a workflow can switch backends by changing
+`agent.kind` alone.
+
+```yaml
+agent:
+  kind: pi
+  max_concurrent_agents: 2
+  max_turns: 8
+pi:
+  command: /home/jingyi/.local/bin/pi-qwen --mode rpc
+  turn_timeout_ms: 3600000
+```
+
+- `pi.command` defaults to `pi --mode rpc` and is launched with `bash -lc` in the issue workspace,
+  with the same workspace-root guard the Codex backend uses.
+- `pi.turn_timeout_ms` is the maximum silence interval while a turn is active; every streamed Pi
+  event resets it. It is not a total turn runtime cap.
+- One Pi process serves every continuation turn in a worker attempt. The first turn gets the
+  rendered issue prompt, later turns get continuation guidance.
+- A turn ends when Pi reports `agent_settled`. Automatic retries, compaction, and queued messages
+  inside Pi therefore stay inside one Symphony turn, and Pi completion returns control to the
+  existing continuation logic.
+- Streaming `message_update` events are forwarded at most once per second so the dashboard and the
+  `codex.stall_timeout_ms` watchdog stay current without flooding the orchestrator.
+- Pi session token usage is read with `get_session_stats` after each turn and reported through the
+  existing token accounting fields, so the dashboard totals keep working.
+- Stream silence beyond `pi.turn_timeout_ms`, a Pi process exit, or a failed RPC command fails the
+  worker attempt so the normal retry path applies.
+- Tracker credential environment variables (for example `LINEAR_API_KEY`) are removed from the Pi
+  child, matching the Codex backend. Configure Pi's own tracker access in Pi's own configuration;
+  Symphony does not proxy tracker tools for Pi.
+- Pi RPC mode never shows a trust prompt, so project-local Pi resources in the workspace (skills,
+  extensions, project settings) are ignored unless a saved trust decision covers that directory.
+  Add `--approve` to `pi.command` or save the decision if the workspace needs those resources.
+
 ### Asana adapter
 
 - Config: use `tracker.kind: asana` with required `tracker.provider.project_gid`, optional
