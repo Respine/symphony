@@ -2,6 +2,8 @@ import Config
 
 config :phoenix, :json_library, Jason
 
+config :symphony_elixir, db_path: System.get_env("SYMPHONY_DB_PATH") || "~/code/symphony/state/symphony.db"
+
 config :symphony_elixir, SymphonyElixirWeb.Endpoint,
   adapter: Bandit.PhoenixAdapter,
   url: [host: "localhost"],
