@@ -1,6 +1,13 @@
 defmodule SymphonyElixir.ControlPlane.Repo do
   use Ecto.Repo, otp_app: :symphony_elixir, adapter: Ecto.Adapters.SQLite3
 
+  @impl true
+  def init(_, opts) do
+    path = database_path()
+    ensure_directory(path)
+    {:ok, Keyword.put(opts, :database, path)}
+  end
+
   @doc """
   Returns the path to the SQLite database file.
 
@@ -16,6 +23,14 @@ defmodule SymphonyElixir.ControlPlane.Repo do
       System.user_home!() <> String.slice(path, 1, String.length(path) - 1)
     else
       path
+    end
+  end
+
+  defp ensure_directory(path) do
+    dir = Path.dirname(path)
+
+    unless File.exists?(dir) do
+      File.mkdir_p!(dir)
     end
   end
 end
