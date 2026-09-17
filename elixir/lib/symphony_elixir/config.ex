@@ -55,6 +55,17 @@ defmodule SymphonyElixir.Config do
 
   def max_concurrent_agents_for_state(_state_name), do: settings!().agent.max_concurrent_agents
 
+  @doc """
+  Agent backend module selected by `agent.kind` for the current workflow.
+  """
+  @spec agent_backend() :: module()
+  def agent_backend do
+    case settings!().agent.kind do
+      "pi" -> SymphonyElixir.Pi.RPC
+      _ -> SymphonyElixir.Codex.AppServer
+    end
+  end
+
   @spec codex_turn_sandbox_policy(Path.t() | nil) :: map()
   def codex_turn_sandbox_policy(workspace \\ nil) do
     case Schema.resolve_runtime_turn_sandbox_policy(settings!(), workspace) do

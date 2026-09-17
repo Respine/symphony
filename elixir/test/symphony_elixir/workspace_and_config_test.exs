@@ -1013,8 +1013,13 @@ defmodule SymphonyElixir.WorkspaceAndConfigTest do
     assert config.tracker.required_labels == []
     assert config.workspace.root == Path.join(System.tmp_dir!(), "symphony_workspaces")
     assert config.worker.max_concurrent_agents_per_host == nil
+    assert config.agent.kind == "codex"
     assert config.agent.max_concurrent_agents == 10
+    assert Config.agent_backend() == SymphonyElixir.Codex.AppServer
     assert config.codex.command == "codex app-server"
+
+    assert config.pi.command == "pi --mode rpc"
+    assert config.pi.turn_timeout_ms == 3_600_000
 
     assert config.codex.approval_policy == %{
              "reject" => %{
@@ -1164,6 +1169,35 @@ defmodule SymphonyElixir.WorkspaceAndConfigTest do
 
     write_workflow_file!(Workflow.workflow_file_path(), codex_command: "codex app-server")
     assert Config.settings!().codex.command == "codex app-server"
+  end
+
+  test "agent.kind pi selects the pi backend without touching codex settings" do
+    write_workflow_file!(Workflow.workflow_file_path(),
+      agent_kind: "pi",
+      pi_command: "/home/jingyi/.local/bin/pi-qwen --mode rpc",
+      pi_turn_timeout_ms: 3_600_000
+    )
+
+    config = Config.settings!()
+    assert config.agent.kind == "pi"
+    assert config.pi.command == "/home/jingyi/.local/bin/pi-qwen --mode rpc"
+    assert config.pi.turn_timeout_ms == 3_600_000
+    assert Config.agent_backend() == SymphonyElixir.Pi.RPC
+
+    assert config.codex.command == "codex app-server"
+    assert config.codex.turn_timeout_ms == 3_600_000
+
+    write_workflow_file!(Workflow.workflow_file_path(), agent_kind: "pi", pi_turn_timeout_ms: "bad")
+    assert {:error, {:invalid_workflow_config, message}} = Config.validate!()
+    assert message =~ "pi.turn_timeout_ms"
+
+    write_workflow_file!(Workflow.workflow_file_path(), agent_kind: "pi", pi_command: "  ")
+    assert {:error, {:invalid_workflow_config, message}} = Config.validate!()
+    assert message =~ "pi.command"
+
+    write_workflow_file!(Workflow.workflow_file_path(), agent_kind: "gemini")
+    assert {:error, {:invalid_workflow_config, message}} = Config.validate!()
+    assert message =~ "agent.kind"
   end
 
   test "config resolves $VAR references for env-backed secret and path values" do

@@ -445,6 +445,11 @@ Fields:
 
 Fields:
 
+- `kind` (string)
+  - Default: `codex`
+  - Selects the agent backend for new worker attempts. `codex` is the reference app-server
+    backend; implementations MAY accept additional values documented in this section.
+  - Unknown values fail configuration validation.
 - `max_concurrent_agents` (integer)
   - Default: `10`
   - Changes SHOULD be re-applied at runtime and affect subsequent dispatch decisions.
@@ -489,6 +494,22 @@ fields locally if they want stricter startup checks.
 - `stall_timeout_ms` (integer)
   - Default: `300000` (5 minutes)
   - If `<= 0`, stall detection is disabled.
+
+#### 5.3.7 `pi` (object)
+
+Backend-owned config for `agent.kind: pi`. Ignored by the Codex app-server backend, so existing
+`codex` settings stay valid whether or not the block is present.
+
+Fields:
+
+- `command` (string shell command)
+  - Default: `pi --mode rpc`
+  - The runtime launches this command via `bash -lc` in the workspace directory.
+  - The launched process MUST speak the Pi coding-agent RPC protocol over stdio.
+- `turn_timeout_ms` (integer)
+  - Default: `3600000` (1 hour)
+  - Maximum silence interval while one Pi turn is active. Each streamed update resets it.
+  - If `<= 0`, the turn timeout is disabled.
 
 ### 5.4 Prompt Template Contract
 
@@ -1175,6 +1196,31 @@ Behavior:
 Note:
 
 - Workspaces are intentionally preserved after successful runs.
+
+### 10.8 OPTIONAL Alternative Agent Backends
+
+The default backend is the Codex app-server client described above. An implementation MAY support
+additional coding-agent CLIs selected by `agent.kind`.
+
+Requirements for an alternative backend:
+
+- It MUST own its own launch command and config block; the Codex `codex` block MUST stay valid and
+  keep its meaning when `agent.kind` selects another backend.
+- It MUST keep the orchestration contract of section 10.7: workspace creation and validation,
+  prompt construction from the workflow template, event forwarding to the orchestrator, and worker
+  attempt failure on error so the orchestrator retry path still applies.
+- It MUST keep one agent process per worker attempt and run continuation turns on that same
+  process, sending the first full issue prompt and continuation guidance afterwards.
+- It MUST treat the backend's settled/idle completion signal as the end of a turn. Intermediate
+  events that the backend can continue from automatically (retry, compaction, queued messages)
+  MUST NOT complete the turn early.
+- It MUST fail the turn on stream silence beyond its backend turn timeout and on subprocess exit.
+- It MUST stop the process when the worker attempt ends and MUST keep the workspace cwd inside the
+  configured workspace root, using the same validation as the Codex backend.
+- It SHOULD report token usage through the same runtime event fields used for Codex usage so
+  existing accounting and dashboard behavior keeps working.
+
+An alternative backend MUST NOT change scheduling, dispatch, tracker, or workspace semantics.
 
 ## 11. Issue Tracker Integration Contract
 
