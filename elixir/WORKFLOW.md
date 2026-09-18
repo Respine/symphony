@@ -252,15 +252,13 @@ Use this only when completion is blocked by missing required tools or missing au
 
 ## Step 4: Rework handling
 
-1. Treat `Rework` as a full approach reset, not incremental patching.
-2. Re-read the full issue body and all human comments; explicitly identify what will be done differently this attempt.
-3. Close the existing PR tied to the issue.
-4. Remove the existing `## Codex Workpad` comment from the issue.
-5. Create a fresh branch from `origin/main`.
-6. Start over from the normal kickoff flow:
-   - If current issue state is `Todo`, move it to `In Progress`; otherwise keep the current state.
-   - Create a new bootstrap `## Codex Workpad` comment.
-   - Build a fresh plan/checklist and execute end-to-end.
+1. Treat `Rework` as an incremental patch to the existing attempt.
+2. Re-read the full issue body, all new human comments, the existing Workpad, and the current workspace before changing anything.
+3. Preserve the existing branch, workspace, commits, PR, and Workpad unless the review explicitly requires replacing one of them.
+4. Add a new attempt section to the Workpad and rewrite only its live plan, acceptance criteria, progress, validation, and handoff; do not delete history.
+5. Append `↩ Rework accepted by runner:lab` with the requested changes and the next checkpoint.
+6. If the issue is still `Rework`, move it to `In Progress` before making changes, then patch only the requested scope.
+7. Re-run the affected validation, update the existing PR when present, and return to `Human Review` only after revalidation.
 
 ## Completion bar before Human Review
 
